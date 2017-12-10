@@ -1,0 +1,33 @@
+#!/usr/bin/expect -f 
+
+if { $argc!=3 } {
+        send_user "usage: $argv0 <server>  <passwd>  <cmdfile> \n"
+        exit 2
+}
+
+set timeout 10
+
+set server [ lindex $argv 0]
+set passwd [ lindex $argv 1]
+set cmdfile [ open [lindex $argv 2] ]
+
+log_file run.log
+
+spawn -noecho ssh root@$server -p 22
+
+expect {
+        "yes/no)?\ " {send "yes\r";exp_continue} 
+        "*assword:\ " {send "$passwd\r"} 
+} 
+
+expect "*]#\ " {
+        while {[gets $cmdfile cmd] >=0 } {
+               send "$cmd\r"
+               }
+} 
+
+expect "*]#\ " {send "exit\r"} 
+
+close $cmdfile
+
+expect eof 
