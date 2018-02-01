@@ -8,7 +8,7 @@ reload(sys)
 sys.setdefaultencoding('utf-8')
 
 
-def tailf(nums, filename='test.txt'):
+def tailf(nums=10, filename='test.txt'):
     nums = abs(nums)
     with codecs.open(filename, 'r', encoding='UTF-8') as f:
         offset = int(-nums)
