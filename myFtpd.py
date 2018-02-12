@@ -1,5 +1,6 @@
 #!/usr/bin/env python3.6
 #coding=utf-8
+#execute_program: /usr/local/python3.6/bin/pyinstaller  -F  myFtpd.py
 
 import argparse
 from pyftpdlib.authorizers import DummyAuthorizer
