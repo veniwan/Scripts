@@ -29,6 +29,7 @@ def main(user, passwd, ftpdir, perms, anony, host, port, max_cons, max_cons_per_
     server.serve_forever()
 
 def init():
+    global perms
     perms = {
         'r':'elr',
         'rw':'elradfmwMT'
@@ -38,7 +39,7 @@ def init():
     parser.add_argument('-u', dest="user", default='ftpuser', help="用户")
     parser.add_argument('-p', dest="passwd", default='ftppasswd', help="密码")
     parser.add_argument('-d', dest="ftpdir", default='.', help="目录")
-    parser.add_argument('-perms', dest="perms", default=perms['rw'], choices=perms.keys(), help="权限")
+    parser.add_argument('-perms', dest="perms", default='r', choices=perms.keys(), help="权限")
     parser.add_argument('-anony', dest="anony", default=False, action="store_true", help="匿名")
     parser.add_argument('-host', dest="host", default='0.0.0.0', help="主机")
     parser.add_argument('-port', dest="port", type=int, default=2121, help="端口")
@@ -50,4 +51,4 @@ def init():
 
 if __name__ == '__main__':
     opt = init().parse_args()
-    main(opt.user, opt.passwd, opt.ftpdir, opt.perms, opt.anony, opt.host, opt.port, opt.max_cons, opt.max_cons_per_ip)
+    main(opt.user, opt.passwd, opt.ftpdir, perms[opt.perms], opt.anony, opt.host, opt.port, opt.max_cons, opt.max_cons_per_ip)
