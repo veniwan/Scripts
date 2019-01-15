@@ -5,10 +5,12 @@
 import os
 import sys
 import time
+import json
 import codecs
 import shutil
 import hashlib
 import logging
+import traceback
 
 import redis
 from daemonize import Daemonize
@@ -31,11 +33,11 @@ logger.addHandler(fh)
 keep_fds = [fh.stream.fileno()]
 
 # 日志存放位置
-logs_dir = '/data/tmp/realtimelogs'
+logs_dir = '/data/tmp/dispatcher/realtimelogs'
 # 过期时间1h
 expire = 1 * 60 * 60
-# 读取间隔1s
-readtime = 1
+# 读取间隔s
+readInterval = 0.01
 
 
 class Flume(object):
@@ -43,13 +45,15 @@ class Flume(object):
         # flow-uuid:mtime
         self.log_files = {}
         self.log_files_for_read = {}
-        self.rd = redis.Redis(host="127.0.0.1", port=6379, db=2, password="redispass")
+        self.rd = redis.Redis(host="127.0.0.1", port=3679, db=7, password="redispass")
 
     def check_delete(self):
         # 确定就一级目录
         now = time.time()
         for log_file in os.listdir(logs_dir):
+            # centos6 stat mtime只精确到秒[非毫秒级]，文件快速写入获取有误，centos7ok，但目前centos6，所以兼容一发加size一起判断
             log_file_mtime = os.path.getmtime(log_file)
+            log_file_size = os.path.getsize(log_file)
             if log_file in self.log_files:
                 if now - self.log_files[log_file] > expire:
                     self.delete_file(log_file)
@@ -57,15 +61,16 @@ class Flume(object):
                     del self.log_files[log_file]
                     del self.log_files_for_read[log_file]
                 else:
-                    # 更新文件时间戳
-                    if log_file_mtime != self.log_files_for_read[log_file][0]:
+                    # 更新文件时间戳和大小
+                    if log_file_mtime != self.log_files_for_read[log_file][0] or log_file_size != self.log_files_for_read[log_file][1]:
                         self.log_files_for_read[log_file][0] = log_file_mtime
+                        self.log_files_for_read[log_file][1] = log_file_size
 
             else:
                 # 防止中断续接
                 self.delete_key(log_file)
                 self.log_files.update({log_file:log_file_mtime})
-                self.log_files_for_read.update({log_file:[log_file_mtime, 0]})
+                self.log_files_for_read.update({log_file:[log_file_mtime, log_file_size, 0]})
 
     def delete_file(self, log_file):
         try:
@@ -82,13 +87,15 @@ class Flume(object):
             f.seek(file_pos)
             lines = f.readlines()
             if lines:
-                self.rd.rpush(log_file, "".join(lines))
+                timestamp = int(time.time()*1000)
+                self.rd.rpush(log_file, json.dumps({str(timestamp):"".join(lines)}))
             return f.tell()
 
     def run(self):
         # 进入目录，否则glob啥的也可以，fork子进程必须在方法内，除__init__等初始外
         os.chdir(logs_dir)
         logger.info('run is begin')
+        # 保留上一份时间戳及位置记录
         log_files_for_read_copy = {}
 
         while True:
@@ -98,13 +105,13 @@ class Flume(object):
                 if self.log_files:
                     for log_file in self.log_files:
                         # 差异化方便初始取值
-                        log_file_mtime_old, file_pos_old = log_files_for_read_copy.get(log_file, [None, 0])
-                        log_file_mtime, file_pos = self.log_files_for_read[log_file]
+                        log_file_mtime_old, log_file_size_old, file_pos_old = log_files_for_read_copy.get(log_file, [None, 0, 0])
+                        log_file_mtime, log_file_size, file_pos = self.log_files_for_read[log_file]
 
-                        if log_file_mtime != log_file_mtime_old:
+                        if log_file_mtime != log_file_mtime_old or log_file_size != log_file_size_old:
                             file_pos_new = self.read_file(log_file, file_pos)
-                            self.log_files_for_read.update({log_file:[log_file_mtime, file_pos_new]})
-                            log_files_for_read_copy.update({log_file:[log_file_mtime, file_pos]})    
+                            self.log_files_for_read.update({log_file:[log_file_mtime, log_file_size, file_pos_new]})
+                            log_files_for_read_copy.update({log_file:[log_file_mtime, log_file_size, file_pos]})
 
             except IOError as e:
                 log_file = e.filename
@@ -114,10 +121,11 @@ class Flume(object):
                 self.delete_key(log_file)
 
             except Exception as e:
-                logger.error('run get exception: {}'.format(str(e)))
+                # logger.error('run get exception: {}'.format(str(e)))
+                logger.error('run get exception: {}'.format(traceback.format_exc()))
 
             finally:
-                time.sleep(readtime)
+                time.sleep(readInterval)
 
         logger.info('run is done')
 
