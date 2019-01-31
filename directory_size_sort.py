@@ -27,11 +27,13 @@ elif len(sys.argv) == 3:
 else:
     print(u"用法：{0} 目录名 打印条数".format(__file__))
     print(u"===========任意键退出！============")
+    raw_input()
     sys.exit(1)
 
 if not os.path.isdir(dirname):
     print(u"目录:{0} 不存在".format(dirname))
     print(u"===========任意键退出！============")
+    raw_input()
     sys.exit(1)
 
 print(u"當前參數：目錄名{0}，顯示條數{1}".format(dirname, numbers))
