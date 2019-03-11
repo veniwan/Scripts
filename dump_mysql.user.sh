@@ -7,7 +7,7 @@ MYSQL_LOAD_VER=$2
 ###### 全局变量开始 ######
 DUMP_FILE='/tmp/dump_mysql.user.sql'
 MYSQL_CMD='mysql -uroot -p123456 -BNe '
-MYSQL_EXCLUDE_USER="('root')"
+MYSQL_EXCLUDE_USER="('root','mysql.session','mysql.sys')"
 MYSQL_EXCLUDE_HOST="('')"
 
 declare -a ver_pass
