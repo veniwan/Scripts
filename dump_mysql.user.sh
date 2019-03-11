@@ -48,3 +48,4 @@ Check $1 $2
 Check $MYSQL_OLD_PASS_FIELD $MYSQL_NEW_PASS_FIELD
 Main > $DUMP_FILE
 sed -ir 's/[^;]$/&;/' $DUMP_FILE
+echo "$DUMP_FILE 已生成！"
