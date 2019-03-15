@@ -39,7 +39,7 @@ function Main(){
             continue
         fi
         # 兼容5.7版本导出grant无identified by导致5.7导入失败，虽然更建议alter user修改密码
-        $MYSQL_CMD "create user $user@$host;" 2> /dev/null
+        echo "create user '$user'@'$host'" 2> /dev/null
         $MYSQL_CMD "show grants for $user@$host;" 2> /dev/null
         $MYSQL_CMD "select concat('update mysql.user set $MYSQL_NEW_PASS_FIELD=\'', $MYSQL_OLD_PASS_FIELD, '\' where user=\'$user\' and host=\'$host\';') from mysql.user where user='$user' and host='$host';" 2>/dev/null
     done <<< "$user_host"
