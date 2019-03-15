@@ -22,25 +22,27 @@ MYSQL_NEW_PASS_FIELD=${ver_pass[$MYSQL_LOAD_VER]}
 ###### 全局变量结束 ######
 
 function Check(){
-	if [ -z "$1" -o -z "$2" ]; then
-		echo 'Position args $1 or $2 error...'
-		echo "Example: $0 dump_ver[55] load_ver[57]"
-		exit 1
-	fi
+    if [ -z "$1" -o -z "$2" ]; then
+        echo 'Position args $1 or $2 error...'
+        echo "Example: $0 dump_ver[55] load_ver[57]"
+        exit 1
+    fi
 }
 
 function Main(){
-	user_host=`$MYSQL_CMD "select user,host from mysql.user where user not in $MYSQL_EXCLUDE_USER and host not in $MYSQL_EXCLUDE_HOST;" 2> /dev/null`
+    user_host=`$MYSQL_CMD "select user,host from mysql.user where user not in $MYSQL_EXCLUDE_USER and host not in $MYSQL_EXCLUDE_HOST;" 2> /dev/null`
 
-	while read user host
-	do
-	    	if [[ "$host" = "%" ]]; then
-                	echo "Exit: host is %"
-               		exit 1
-		fi
-		$MYSQL_CMD "show grants for $user@$host;" 2> /dev/null 
-		$MYSQL_CMD "select concat('update mysql.user set $MYSQL_NEW_PASS_FIELD=\'', $MYSQL_OLD_PASS_FIELD, '\' where user=\'$user\' and host=\'$host\';') from mysql.user where user='$user' and host='$host';" 2>/dev/null
-	done <<< "$user_host"
+    while read user host
+    do
+        if [[ "$host" = "%" ]]; then
+           # echo "Exit: host is %"
+            continue
+        fi
+        # 兼容5.7版本导出grant无identified by导致5.7导入失败，虽然更建议alter user修改密码
+        $MYSQL_CMD "create user $user@$host;" 2> /dev/null
+        $MYSQL_CMD "show grants for $user@$host;" 2> /dev/null
+        $MYSQL_CMD "select concat('update mysql.user set $MYSQL_NEW_PASS_FIELD=\'', $MYSQL_OLD_PASS_FIELD, '\' where user=\'$user\' and host=\'$host\';') from mysql.user where user='$user' and host='$host';" 2>/dev/null
+    done <<< "$user_host"
 }
 
 # 执行开始
